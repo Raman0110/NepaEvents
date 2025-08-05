@@ -22,7 +22,7 @@ export const EventDetail = () => {
       try {
         const response = await axios.get(`http://localhost:3000/api/event/${id}`);
         setEvent(response.data.event);
-        
+
         // Check if event is in favorites
         if (isAuthenticated) {
           const favResponse = await axios.get('http://localhost:3000/api/event/user/favorites', {
@@ -114,7 +114,7 @@ export const EventDetail = () => {
         promoCode: appliedPromo?.code || null,
         quantity: ticketCount
       }, { withCredentials: true });
-      
+
       localStorage.setItem('eventId', id);
       if (!response.data.success) {
         throw new Error("Unable to book event");
@@ -135,7 +135,7 @@ export const EventDetail = () => {
   }
 
   const calculateTotalPrice = () => {
-    const basePrice = ticketCount * event.price;
+    const basePrice = ticketCount * event.dynamicPrice;
     if (appliedPromo) {
       return basePrice * (1 - appliedPromo.discount / 100);
     }
@@ -160,7 +160,7 @@ export const EventDetail = () => {
             <FaArrowLeft className="mr-2" />
             Back to Events
           </Link>
-          
+
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">{event.title}</h1>
@@ -175,7 +175,7 @@ export const EventDetail = () => {
                 </div>
               </div>
             </div>
-            
+
             <button
               onClick={toggleFavorite}
               className="bg-white/90 p-3 rounded-full shadow-lg hover:bg-white transition-colors duration-200"
@@ -199,11 +199,10 @@ export const EventDetail = () => {
                 {['description', 'details', 'terms'].map((tab) => (
                   <button
                     key={tab}
-                    className={`flex-1 py-4 px-6 font-semibold text-center transition-colors ${
-                      activeTab === tab 
-                        ? 'text-[#ED4A43] border-b-2 border-[#ED4A43]' 
-                        : 'text-gray-500 hover:text-gray-800'
-                    }`}
+                    className={`flex-1 py-4 px-6 font-semibold text-center transition-colors ${activeTab === tab
+                      ? 'text-[#ED4A43] border-b-2 border-[#ED4A43]'
+                      : 'text-gray-500 hover:text-gray-800'
+                      }`}
                     onClick={() => setActiveTab(tab)}
                   >
                     {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -225,7 +224,7 @@ export const EventDetail = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {activeTab === 'details' && (
                   <div>
                     <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
@@ -248,7 +247,7 @@ export const EventDetail = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {activeTab === 'terms' && (
                   <div>
                     <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
@@ -274,7 +273,7 @@ export const EventDetail = () => {
               <div className="p-6 border-b">
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">Book Tickets</h2>
                 <div className="flex items-center text-lg text-[#ED4A43] font-bold">
-                  ${event.price.toFixed(2)} <span className="text-gray-500 text-sm font-normal ml-1">per ticket</span>
+                  ${event.dynamicPrice.toFixed(2)} <span className="text-gray-500 text-sm font-normal ml-1">per ticket</span>
                 </div>
               </div>
 
@@ -317,7 +316,7 @@ export const EventDetail = () => {
                           {appliedPromo.code} ({appliedPromo.discount}% off)
                         </span>
                       </div>
-                      <button 
+                      <button
                         onClick={removePromoCode}
                         className="text-sm text-red-500 hover:text-red-700"
                       >
@@ -356,12 +355,12 @@ export const EventDetail = () => {
                 <div className="space-y-2 pt-3 border-t">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Subtotal ({ticketCount} tickets)</span>
-                    <span className="font-medium">${(ticketCount * event.price).toFixed(2)}</span>
+                    <span className="font-medium">${(ticketCount * event.dynamicPrice).toFixed(2)}</span>
                   </div>
                   {appliedPromo && (
                     <div className="flex justify-between text-green-600">
                       <span>Discount ({appliedPromo.discount}%)</span>
-                      <span>-${(ticketCount * event.price * appliedPromo.discount / 100).toFixed(2)}</span>
+                      <span>-${(ticketCount * event.dynamicPrice * appliedPromo.discount / 100).toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-lg pt-2">
