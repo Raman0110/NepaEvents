@@ -7,7 +7,7 @@ const { OAuth2Client } = require('google-auth-library');
 
 const registerUser = async (req, res) => {
   try {
-    const { fullName, email, password, role = 'user'} = req.body;
+    const { fullName, email, password, role = 'user' } = req.body;
     // Validate input fields
     if (!fullName || !email || !password || !role) {
       return res.status(400).json({
@@ -23,6 +23,12 @@ const registerUser = async (req, res) => {
         success: false,
         message: "User already exists",
       });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be 8 character long"
+      })
     }
 
     // Hash password
@@ -57,7 +63,7 @@ const loginUser = async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid Email"
+        message: "User not found"
       })
     }
     const checkPassword = await bcrypt.compare(password, user.password);
@@ -135,7 +141,7 @@ const updateUserProfile = async (req, res) => {
     user.email = email || user.email;
 
     if (password) {
-      user.password = await bcrypt.hash(password, 10); 
+      user.password = await bcrypt.hash(password, 10);
     }
     await user.save();
 
@@ -164,10 +170,10 @@ const sendOtp = async (req, res) => {
     if (!process.env.EMAIL_USERNAME || !process.env.EMAIL_PASSWORD) {
       console.warn("Email credentials not found in .env file. Using test mode instead.");
       // For testing purposes, send a success response without actually sending an email
-      return res.status(200).json({ 
-        success: true, 
-        message: "Development mode: OTP generated successfully (not sent by email)", 
-        testOtp: OTP 
+      return res.status(200).json({
+        success: true,
+        message: "Development mode: OTP generated successfully (not sent by email)",
+        testOtp: OTP
       });
     }
 
@@ -190,7 +196,7 @@ const sendOtp = async (req, res) => {
           <p style="font-size: 16px;">We received a request to reset your password. Use the OTP below to proceed:</p>
           <h3 style="background: #f8f8f8; padding: 10px; border-radius: 5px; text-align: center; font-size: 24px; letter-spacing: 2px;">${OTP}</h3>
           <p style="font-size: 16px;">If you didn't request this, please ignore this email.</p>
-          <p style="color: red; font-weight: bold;">⚠️ Do not share this OTP with anyone for security reasons.</p>
+          <p style="color: red; font-weight: bold;"⚠️ Do not share this OTP with anyone for security reasons.</p>
           <p style="font-size: 14px; color: #666;">Best regards,</p>
           <p style="font-size: 14px; color: #666;">NepaEvents Team</p>
         </div>
@@ -214,10 +220,10 @@ const verifyOtp = async (req, res) => {
 
     if (!process.env.EMAIL_USERNAME || !process.env.EMAIL_PASSWORD) {
       console.warn("Email credentials not found. Development mode: accepting any OTP.");
-      await User.updateOne({ _id: user._id }, { $unset: { otp: 1, otpExpiresAt: 1 } });
-      return res.status(200).json({ 
-        success: true, 
-        message: "Development mode: OTP verification bypassed", 
+      await User.updateOne({ _id: user._id }, { Rsunset: { otp: 1, otpExpiresAt: 1 } });
+      return res.status(200).json({
+        success: true,
+        message: "Development mode: OTP verification bypassed",
         token: "dev-token"
       });
     }
@@ -262,7 +268,7 @@ const googleSignIn = async (req, res) => {
     // Verify ID token
     const ticket = await client.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_CLIENT_ID, 
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
     const { email, name } = ticket.getPayload();
 
@@ -283,7 +289,7 @@ const googleSignIn = async (req, res) => {
         fullName: name,
         email,
         provider: 'google',
-        role: 'user' 
+        role: 'user'
       });
     }
 

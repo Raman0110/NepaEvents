@@ -3,7 +3,7 @@ const Event = require("../models/event-model");
 const path = require('path');
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
-const QRCode = require('qrcode'); 
+const QRCode = require('qrcode');
 
 
 const getTicketById = async (req, res) => {
@@ -23,19 +23,19 @@ const getTicketById = async (req, res) => {
 const getTicketsByEvent = async (req, res) => {
   try {
     const eventId = req.params.eventId;
-    
+
     // Verify the event exists
     const event = await Event.findById(eventId);
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
-    
+
     // Fetch tickets for this event
     const tickets = await Ticket.find({ event: eventId })
       .populate('user')
       .populate('event')
       .sort({ purchaseDate: -1 }); // Sort by purchase date descending (newest first)
-    
+
     res.status(200).json(tickets);
   } catch (error) {
     console.error('Error fetching tickets for event:', error);
@@ -49,9 +49,9 @@ const getTicketsByEvent = async (req, res) => {
 const getTicketsByUser = async (req, res) => {
   try {
     const userId = req.user.user ? req.user.user._id : req.user._id;
-    
+
     console.log("Looking for tickets for user ID:", userId);
-    
+
     // Find all tickets purchased by this user
     const tickets = await Ticket.find({ user: userId })
       .populate({
@@ -61,9 +61,9 @@ const getTicketsByUser = async (req, res) => {
         }
       })
       .sort({ purchaseDate: -1 });
-    
+
     console.log("Found tickets:", tickets.length);
-    
+
     res.status(200).json(tickets);
   } catch (error) {
     console.error('Error fetching user tickets:', error);
@@ -200,7 +200,7 @@ const downloadTicket = async (req, res) => {
 const viewTicketQRCode = async (req, res) => {
   try {
     const ticketId = req.params.id;
-    const ticketCode = req.query.code; 
+    const ticketCode = req.query.code;
 
     if (!ticketCode) {
       return res.status(400).json({ message: 'Ticket code is required' });
@@ -272,11 +272,11 @@ const deleteTicket = async (req, res) => {
 };
 
 
-module.exports = { 
-  getTicketById, 
-  getTicketsByEvent, 
-  getTicketsByUser, 
-  downloadTicket, 
+module.exports = {
+  getTicketById,
+  getTicketsByEvent,
+  getTicketsByUser,
+  downloadTicket,
   viewTicketQRCode,
   deleteTicket
 };

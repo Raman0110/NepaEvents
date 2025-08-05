@@ -125,14 +125,68 @@ const deleteEvent = async (req, res) => {
 }
 const findEventById = async (req, res) => {
     try {
-        const id = req.params.id
-        const event = await Event.findById(id).populate("venue").populate("organizer");
-        res.status(200).json({ success: true, event });
+        const id = req.params.id;
+        const event = await Event.findById(id)
+            .populate("venue")
+            .populate("organizer");
+
+        if (!event) {
+            return res.status(404).json({ success: false, msg: "Event not found" });
+        }
+
+        // Get tickets sold
+        const tickets = await Ticket.aggregate([
+            { $match: { event: event._id } },
+            { $group: { _id: null, totalSold: { $sum: "$quantity" } } }
+        ]);
+        const ticketsSold = tickets.length > 0 ? tickets[0].totalSold : 0;
+
+        const basePrice = event.price;
+        const totalTickets = event?.venue?.capacity || 1;
+        const percentSold = ticketsSold / totalTickets;
+
+        // Get event timing
+        const now = new Date();
+        const eventDate = new Date(event.date); // assuming you have event.date
+        const timeDiffInDays = Math.max((eventDate - now) / (1000 * 60 * 60 * 24), 0);
+
+        // Pricing Strategy
+        let dynamicPrice = basePrice;
+        // 1. Tiered price increase based on % of tickets sold
+        if (percentSold > 0.75) {
+            dynamicPrice *= 1.5; // 50% increase
+        } else if (percentSold > 0.5) {
+            dynamicPrice *= 1.3; // 30% increase
+        } else if (percentSold > 0.25) {
+            dynamicPrice *= 1.15; // 15% increase
+        }
+        // 2. Time-based surge: closer to event = higher price
+        if (Math.floor(timeDiffInDays) < 3) {
+            dynamicPrice *= 1.25; // 25% surge in last 3 days
+        } else if (Math.floor(timeDiffInDays) < 7) {
+            dynamicPrice *= 1.15;
+        }
+        // 3. Cap max price to 2x base
+        dynamicPrice = Math.min(dynamicPrice, basePrice * 2);
+
+        res.status(200).json({
+            success: true,
+            event: {
+                ...event.toObject(),
+                dynamicPrice: parseFloat(dynamicPrice.toFixed(2)),
+                ticketsSold,
+                percentSold: parseFloat((percentSold * 100).toFixed(2)),
+                daysUntilEvent: Math.floor(timeDiffInDays)
+            }
+        });
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ msg: "Server error" });
     }
-}
+};
+
+
 const buyEventTicket = async (req, res) => {
     try {
         const { eventId, promoCode, quantity } = req.body;
@@ -147,12 +201,24 @@ const buyEventTicket = async (req, res) => {
             });
         }
 
+        const tickets = await Ticket.aggregate([
+            { $match: { event: event._id } },
+            { $group: { _id: null, totalSold: { $sum: "$quantity" } } }
+        ]);
+
+        if (event.venue.capacity === tickets.totalSold) {
+            return res.status(500).json({
+                success: false,
+                message: "All tickets sold! Ticket out of stock"
+            });
+        }
+
         let priceAfterDiscount = event.price;
         let discountDescription = "";
         let groupDiscountApplied = false;
         let promoDiscountApplied = false;
 
-        // Apply group discount first if applicable (20% for 5+ tickets)
+        // Apply group discount fi$t if applicable (20% for 5+ tickets)
         if (quantity >= 5) {
             const groupDiscount = 20;
             priceAfterDiscount *= (1 - groupDiscount / 100);
@@ -198,7 +264,7 @@ const buyEventTicket = async (req, res) => {
             customer_email: req.user.user.email,
             line_items: [{
                 price_data: {
-                    currency: "usd",
+                    currency: "npr",
                     product_data: {
                         name: `Event Ticket: ${event.title}`,
                         description: `${quantity} ticket${quantity > 1 ? 's' : ''} for ${event.title}\n${discountDescription}`,
