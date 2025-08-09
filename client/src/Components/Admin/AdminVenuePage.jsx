@@ -446,11 +446,11 @@ export const AdminVenuePage = () => {
                             e.stopPropagation();
                             handleApproveVenue(venue?._id);
                           }}
-                          className={`px-4 py-3 rounded-lg flex items-center justify-center ${venue.status === "approved"
+                          className={`px-4 py-3 rounded-lg flex items-center justify-center ${venue.status !== "pending"
                             ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                             : "bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:shadow-md"
                             }`}
-                          disabled={venue.status === "approved"}
+                          disabled={venue.status !== "pending"}
                         >
                           <FaCheckCircle className="mr-2" /> Approve
                         </button>
@@ -459,11 +459,11 @@ export const AdminVenuePage = () => {
                             e.stopPropagation();
                             handleRejectVenue(venue._id);
                           }}
-                          className={`px-4 py-3 rounded-lg flex items-center justify-center ${venue.status === "rejected"
+                          className={`px-4 py-3 rounded-lg flex items-center justify-center ${venue.status !== "pending"
                             ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                             : "bg-[#ED4A43] text-white hover:shadow-md"
                             }`}
-                          disabled={venue.status === "rejected"}
+                          disabled={venue.status !== "pending"}
                         >
                           <FaTimesCircle className="mr-2" /> Reject
                         </button>
@@ -703,7 +703,7 @@ export const AdminVenuePage = () => {
                     />
                   </div>
 
-                    {/* Important Information Section - for Requested Venues */}
+                  {/* Important Information Section - for Requested Venues */}
                   {activeTab === "requestedVenues" && (
                     <div className="p-4 bg-red-50 rounded-xl border border-red-100">
                       <h3 className="text-gray-700 font-semibold mb-4 flex items-center">

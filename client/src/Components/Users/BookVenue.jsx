@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 import {
-  FaMapMarkerAlt,FaUsers,FaBuilding,FaHeart,FaSearch,FaCalendarAlt,FaInfoCircle,FaTrashAlt
+  FaMapMarkerAlt, FaUsers, FaBuilding, FaHeart, FaSearch, FaCalendarAlt, FaInfoCircle, FaTrashAlt
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
@@ -17,7 +17,7 @@ export const BookVenue = () => {
   const [categories, setCategories] = useState(null);
   const [venues, setVenues] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(false);
-   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [bookingDetails, setBookingDetails] = useState({
     title: "",
     description: "",
@@ -179,7 +179,7 @@ export const BookVenue = () => {
         console.error("Error fetching favorites:", error);
       }
     }
-    
+
     if (isLoggedIn) {
       fetchFavorites();
     }
@@ -231,11 +231,11 @@ export const BookVenue = () => {
                   </div>
                 </div>
                 <Link to={`/venue/${venue._id}`} className="block">
-                <img 
-                  src={`http://localhost:3000/${venue.image}`}
-                  alt={venue.name}
-                  className="w-full h-56 object-cover transform group-hover:scale-105 transition-transform duration-700"
-                />
+                  <img
+                    src={`http://localhost:3000/${venue.image}`}
+                    alt={venue.name}
+                    className="w-full h-56 object-cover transform group-hover:scale-105 transition-transform duration-700"
+                  />
                 </Link>
                 <button
                   onClick={(e) => {
@@ -297,7 +297,7 @@ export const BookVenue = () => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="bg-gradient-to-r from-[#ED4A43] to-[#FF7A6E] p-6 text-white">
               <h3 className="text-2xl font-bold">
-                {isBookingConfirmed ? "Booking Confirmed" : `Book ${selectedVenue.name}`}
+                {isBookingConfirmed ? "Booking Requested" : `Book ${selectedVenue.name}`}
               </h3>
               <p className="text-red-100 text-sm mt-1">
                 {isBookingConfirmed
@@ -502,7 +502,7 @@ export const BookVenue = () => {
             ) : (
               <div className="p-8">
                 <h3 className="text-center text-xl font-semibold text-[#ED4A43] mb-4">
-                  Your booking for {selectedVenue.name} has been confirmed!
+                  Your request for booking {selectedVenue.name} has been forwarded to admin!
                 </h3>
                 <p className="text-center text-lg text-gray-600">
                   We will send you the booking details and confirmation shortly.

@@ -21,10 +21,10 @@ const MyTickets = () => {
     const fetchTickets = async () => {
       try {
         setLoading(true);
-        const response = await axios.get("http://localhost:3000/api/ticket/user", { 
-          withCredentials: true 
+        const response = await axios.get("http://localhost:3000/api/ticket/user", {
+          withCredentials: true
         });
-        
+
         setTickets(response.data || []);
       } catch (error) {
         console.error("Error fetching tickets:", error);
@@ -39,29 +39,29 @@ const MyTickets = () => {
   const handleDownloadTicket = async (ticketId, index = null) => {
     try {
       setDownloadError(null);
-      
+
       // Find the ticket to check if it has ticketCodes
       const ticket = tickets.find(t => t._id === ticketId);
       console.log("Ticket to download:", ticket);
       // Build the URL based on the backend implementation
       let downloadUrl = `http://localhost:3000/api/ticket/${ticketId}/download?code=${ticket.ticketCodes[0]}`;
-      
+
       // Trigger the download using axios with responseType blob
       const response = await axios.get(downloadUrl, {
         withCredentials: true,
         responseType: 'blob'
       });
-      
+
       // Create a download link and trigger it
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `ticket_${ticketId}${index !== null ? `_${index+1}` : ''}.pdf`);
+      link.setAttribute('download', `ticket_${ticketId}${index !== null ? `_${index + 1}` : ''}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      
+
     } catch (error) {
       console.error("Error downloading ticket:", error);
       setDownloadError("Failed to download ticket. Please try again later.");
@@ -76,21 +76,21 @@ const MyTickets = () => {
 
   const confirmDelete = async () => {
     if (!ticketToDelete) return;
-    
+
     try {
       setDeleteError(null);
-      
+
       // Call the delete API endpoint
       await axios.delete(`http://localhost:3000/api/ticket/${ticketToDelete}`, {
         withCredentials: true
       });
-      
+
       // Remove the deleted ticket from state
       setTickets(tickets.filter(ticket => ticket._id !== ticketToDelete));
-      
+
       // Show success toast message
       toast.success("Ticket deleted successfully!");
-      
+
       // Reset deletion state
       setTicketToDelete(null);
       setIsDeleting(false);
@@ -179,13 +179,13 @@ const MyTickets = () => {
                           <span>
                             {ticket.event?.date
                               ? new Date(ticket.event.date).toLocaleString("en-US", {
-                                  weekday: "long",
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
+                                weekday: "long",
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
                               : "Date not available"}
                           </span>
                         </div>
@@ -198,8 +198,8 @@ const MyTickets = () => {
                         <div className="flex items-center text-gray-600">
                           <FaTicketAlt className="text-[#ED4A43] mr-2" />
                           <span>
-                            {ticket.quantity > 1 
-                              ? `${ticket.quantity} Tickets` 
+                            {ticket.quantity > 1
+                              ? `${ticket.quantity} Tickets`
                               : `Ticket #${ticket._id.substring(0, 8)}`
                             }
                           </span>
@@ -222,11 +222,11 @@ const MyTickets = () => {
                       <div className="text-right mt-2">
                         {ticket.quantity > 1 && (
                           <span className="block text-sm text-gray-500">
-                            {ticket.quantity} × ${ticket.price?.toFixed(2)}
+                            {ticket.quantity} × Rs {ticket.price?.toFixed(2)}
                           </span>
                         )}
                         <span className="text-xl font-bold text-[#ED4A43]">
-                          ${(ticket.price * (ticket.quantity || 1)).toFixed(2)}
+                          Rs {(ticket.price * (ticket.quantity || 1)).toFixed(2)}
                         </span>
                       </div>
                       <span className="text-sm text-gray-500">
@@ -242,14 +242,14 @@ const MyTickets = () => {
                       </h4>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        {/* //ticket */}
-                        <button
-                          onClick={() => handleDownloadTicket(ticket._id)}
-                          className="inline-flex items-center px-3 py-1 bg-[#ED4A43] text-white text-xs font-medium rounded-md hover:bg-red-600"
-                        >
-                          <FaDownload className="mr-1" />
-                          Download
-                        </button>
+                      {/* //ticket */}
+                      <button
+                        onClick={() => handleDownloadTicket(ticket._id)}
+                        className="inline-flex items-center px-3 py-1 bg-[#ED4A43] text-white text-xs font-medium rounded-md hover:bg-red-600"
+                      >
+                        <FaDownload className="mr-1" />
+                        Download
+                      </button>
                       {/* )} */}
                     </div>
                   </div>

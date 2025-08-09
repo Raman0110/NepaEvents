@@ -91,6 +91,7 @@ const loginUser = async (req, res) => {
     })
   }
 }
+
 const logoutUser = async (req, res) => {
   try {
     const cookies = req.cookies;

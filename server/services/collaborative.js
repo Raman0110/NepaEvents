@@ -7,18 +7,15 @@ const getCollaborativeRecommendations = async (userId) => {
       path: 'purchasedTickets',
       populate: { path: 'event' }
     });
-    
-    // Get the events the user has attended (from their tickets)
+
     const userAttendedEventIds = user.purchasedTickets
       .filter(ticket => ticket.event) // Ensure the event exists on the ticket
       .map(ticket => ticket.event._id.toString());
 
-    // If user hasn't purchased any tickets, try using favorites
     if (userAttendedEventIds.length === 0) {
       return [];
     }
 
-    // Find users who have attended similar events
     const similarUsers = await User.find({
       _id: { $ne: userId }, // Exclude current user
       purchasedTickets: { $exists: true, $not: { $size: 0 } }
@@ -27,9 +24,8 @@ const getCollaborativeRecommendations = async (userId) => {
       populate: { path: 'event' }
     });
 
-    // Collect event IDs from similar users that the current user hasn't attended
     const recommendedEventIds = new Set();
-    
+
     for (const otherUser of similarUsers) {
       if (otherUser.purchasedTickets && otherUser.purchasedTickets.length > 0) {
         for (const ticket of otherUser.purchasedTickets) {
@@ -40,15 +36,14 @@ const getCollaborativeRecommendations = async (userId) => {
       }
     }
 
-    // Fetch full event details with venue and organizer information
     const events = await Event.find({
       _id: { $in: Array.from(recommendedEventIds) }
     })
-    .populate('venue')
-    .populate('organizer')
-    .populate('category')
-    .limit(10); // Limit to 10 recommendations
-    
+      .populate('venue')
+      .populate('organizer')
+      .populate('category')
+      .limit(10); // Limit to 10 recommendations
+
     return events;
   } catch (error) {
     console.error("Error in collaborative recommendations:", error);

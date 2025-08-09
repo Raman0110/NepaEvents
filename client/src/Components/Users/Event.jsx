@@ -468,23 +468,9 @@ export const Event = () => {
                           <div className="flex items-center justify-between mb-3 sm:mb-4">
                             <span className="font-medium text-gray-700 text-sm sm:text-base">Total:</span>
                             <div className="text-right">
-                              {(priceDetails.groupDiscount > 0 || priceDetails.promoDiscount > 0) && (
-                                <span className="text-xs sm:text-sm text-gray-500 line-through mr-1 sm:mr-2">
-                                  ${priceDetails.basePrice.toFixed(2)}
-                                </span>
-                              )}
                               <span className="text-base sm:text-lg font-bold text-[#ED4A43]">
-                                ${priceDetails.finalPrice.toFixed(2)}
+                                Rs {event.dynamicPrice.toFixed(2)}
                               </span>
-                              {(priceDetails.groupDiscount > 0 || priceDetails.promoDiscount > 0) && (
-                                <div className="text-xs text-green-600 font-medium">
-                                  You save: ${priceDetails.totalDiscount.toFixed(2)} (
-                                  {priceDetails.groupDiscount > 0 && `${priceDetails.groupDiscount}% group`}
-                                  {priceDetails.groupDiscount > 0 && priceDetails.promoDiscount > 0 && ' + '}
-                                  {priceDetails.promoDiscount > 0 && `${priceDetails.promoDiscount}% promo`}
-                                  )
-                                </div>
-                              )}
                             </div>
                           </div>
 

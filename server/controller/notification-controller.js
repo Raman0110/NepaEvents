@@ -11,7 +11,7 @@ const createNotification = async (userId, title, message, type = "general", rela
       type,
       relatedItem
     });
-    
+
     await notification.save();
     return notification;
   } catch (error) {
@@ -27,7 +27,7 @@ const getUserNotifications = async (req, res) => {
     const notifications = await Notification.find({ user: userId })
       .sort({ createdAt: -1 }) // Sort by newest first
       .limit(50); // Limit to most recent 50 notifications
-    
+
     res.status(200).json({ success: true, notifications });
   } catch (error) {
     console.error("Error fetching notifications:", error);
@@ -40,17 +40,17 @@ const markNotificationAsRead = async (req, res) => {
   try {
     const { notificationId } = req.params;
     const userId = req.user.user._id;
-    
+
     const notification = await Notification.findOneAndUpdate(
       { _id: notificationId, user: userId },
       { isRead: true },
       { new: true }
     );
-    
+
     if (!notification) {
       return res.status(404).json({ success: false, message: "Notification not found" });
     }
-    
+
     res.status(200).json({ success: true, notification });
   } catch (error) {
     console.error("Error marking notification as read:", error);
@@ -62,12 +62,12 @@ const markNotificationAsRead = async (req, res) => {
 const markAllNotificationsAsRead = async (req, res) => {
   try {
     const userId = req.user.user._id;
-    
+
     await Notification.updateMany(
       { user: userId, isRead: false },
       { isRead: true }
     );
-    
+
     res.status(200).json({ success: true, message: "All notifications marked as read" });
   } catch (error) {
     console.error("Error marking all notifications as read:", error);
@@ -80,13 +80,13 @@ const deleteNotification = async (req, res) => {
   try {
     const { notificationId } = req.params;
     const userId = req.user.user._id;
-    
+
     const result = await Notification.findOneAndDelete({ _id: notificationId, user: userId });
-    
+
     if (!result) {
       return res.status(404).json({ success: false, message: "Notification not found" });
     }
-    
+
     res.status(200).json({ success: true, message: "Notification deleted successfully" });
   } catch (error) {
     console.error("Error deleting notification:", error);
@@ -100,7 +100,7 @@ const checkLastDayTicketEvents = async () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
-    
+
     // Find events happening tomorrow
     const lastDayEvents = await Event.find({
       date: {
@@ -108,7 +108,7 @@ const checkLastDayTicketEvents = async () => {
         $lt: new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000)
       }
     }).populate('organizer');
-    
+
     // Create notifications for each event's organizer
     for (const event of lastDayEvents) {
       await createNotification(
@@ -119,8 +119,7 @@ const checkLastDayTicketEvents = async () => {
         { itemId: event._id, itemType: "event" }
       );
     }
-    
-    console.log(`Created ${lastDayEvents.length} last day ticket notifications`);
+
   } catch (error) {
     console.error("Error checking last day ticket events:", error);
   }

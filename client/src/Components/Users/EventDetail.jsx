@@ -273,7 +273,7 @@ export const EventDetail = () => {
               <div className="p-6 border-b">
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">Book Tickets</h2>
                 <div className="flex items-center text-lg text-[#ED4A43] font-bold">
-                  ${event.dynamicPrice.toFixed(2)} <span className="text-gray-500 text-sm font-normal ml-1">per ticket</span>
+                  Rs {event.dynamicPrice.toFixed(2)} <span className="text-gray-500 text-sm font-normal ml-1">per ticket</span>
                 </div>
               </div>
 
@@ -355,17 +355,17 @@ export const EventDetail = () => {
                 <div className="space-y-2 pt-3 border-t">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Subtotal ({ticketCount} tickets)</span>
-                    <span className="font-medium">${(ticketCount * event.dynamicPrice).toFixed(2)}</span>
+                    <span className="font-medium">Rs {(ticketCount * event.dynamicPrice).toFixed(2)}</span>
                   </div>
                   {appliedPromo && (
                     <div className="flex justify-between text-green-600">
                       <span>Discount ({appliedPromo.discount}%)</span>
-                      <span>-${(ticketCount * event.dynamicPrice * appliedPromo.discount / 100).toFixed(2)}</span>
+                      <span>-Rs {(ticketCount * event.dynamicPrice * appliedPromo.discount / 100).toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-lg pt-2">
                     <span>Total</span>
-                    <span className="text-[#ED4A43]">${totalPrice.toFixed(2)}</span>
+                    <span className="text-[#ED4A43]">Rs {totalPrice.toFixed(2)}</span>
                   </div>
                 </div>
 

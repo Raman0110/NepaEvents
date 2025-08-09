@@ -23,7 +23,7 @@ export const EventPaymentSuccess = () => {
   const sessionId = searchParams.get("session_id");
 
   useEffect(() => {
-    const eventId = localStorage.getItem("eventId");  
+    const eventId = localStorage.getItem("eventId");
     async function fetchEventDetail() {
       try {
         const response = await axios.get(
@@ -41,7 +41,7 @@ export const EventPaymentSuccess = () => {
       try {
         // First verify the payment
         const verifyResponse = await axios.get(
-          `http://localhost:3000/api/event/verify-purchase/${eventId}?session_id=${sessionId}`, 
+          `http://localhost:3000/api/event/verify-purchase/${eventId}?session_id=${sessionId}`,
           { withCredentials: true }
         );
 
@@ -54,7 +54,7 @@ export const EventPaymentSuccess = () => {
           `http://localhost:3000/api/event/get-session/${sessionId}`,
           { withCredentials: true }
         );
-        
+
         if (sessionResponse.data.success) {
           setPurchaseDetails({
             quantity: parseInt(sessionResponse.data.quantity) || 1,
@@ -180,8 +180,8 @@ export const EventPaymentSuccess = () => {
                     <div className="mt-2 pt-4 flex justify-between items-center bg-gray-50 p-4 rounded-lg">
                       <div className="flex flex-col">
                         <span className="text-gray-800 font-bold">
-                          {purchaseDetails.quantity > 1 ? 
-                            `${purchaseDetails.quantity} Tickets` : 
+                          {purchaseDetails.quantity > 1 ?
+                            `${purchaseDetails.quantity} Tickets` :
                             "Ticket Price"
                           }:
                         </span>
@@ -194,11 +194,11 @@ export const EventPaymentSuccess = () => {
                       <div className="flex flex-col items-end">
                         {purchaseDetails.quantity > 1 && purchaseDetails.discountApplied && (
                           <span className="text-sm text-gray-500 line-through">
-                            ${(eventDetail.price * purchaseDetails.quantity).toFixed(2)}
+                            Rs {(eventDetail.price * purchaseDetails.quantity).toFixed(2)}
                           </span>
                         )}
                         <span className="text-2xl font-bold text-[#ED4A43]">
-                          ${purchaseDetails.totalAmount.toFixed(2)}
+                          Rs {purchaseDetails.totalAmount.toFixed(2)}
                         </span>
                         <span className="text-xs text-green-600 font-medium">
                           Payment Completed

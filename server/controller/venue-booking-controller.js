@@ -8,26 +8,27 @@ const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
 const QRCode = require('qrcode');
+const { createNotification } = require('./notification-controller');
 
 const bookVenue = async (req, res) => {
   try {
     const { title, description, category, date, artist, ticketPrice, venue } = req.body;
     const image = req.file ? req.file.path : null;
-    
+
     // Check if the venue is already booked for this date
     const bookingDate = new Date(date);
     const existingBooking = await VenueBooking.findOne({
       venue: venue,
       status: "approved",
-      "eventDetails.date": { 
-        $gte: new Date(bookingDate.setHours(0, 0, 0, 0)), 
+      "eventDetails.date": {
+        $gte: new Date(bookingDate.setHours(0, 0, 0, 0)),
         $lte: new Date(bookingDate.setHours(23, 59, 59, 999))
       }
     }).populate("organizer", "fullName email");
-    
+
     if (existingBooking) {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         message: "This venue is already booked for the selected date",
         booking: {
           id: existingBooking._id,
@@ -36,7 +37,7 @@ const bookVenue = async (req, res) => {
         }
       });
     }
-    
+
     const eventDetails = { title, description, category, date, artist, ticketPrice, image };
     const organizer = req.user.user._id;
     const newBooking = await VenueBooking.create({
@@ -90,8 +91,6 @@ const approveVenueBooking = async (req, res) => {
     booking.status = "approved";
     await booking.save();
 
-    // Create notification for the booking organizer
-    const { createNotification } = require('./notification-controller');
     await createNotification(
       booking.organizer._id,
       "Venue Booking Approved!",
@@ -119,6 +118,15 @@ const rejectVenueBooking = async (req, res) => {
 
     booking.status = "rejected";
     await booking.save();
+
+    await createNotification(
+      booking.organizer._id,
+      "Venue Booking Rejected!",
+      "Your venue booking has been rejected Please try again",
+      "venue_rejection",
+      { itemId: booking._id, itemType: "booking" }
+    );
+
     res.status(200).json({ success: true, message: "Booking rejected successfully" });
   } catch (error) {
     console.log(error);
@@ -146,7 +154,7 @@ const makePaymentForVenue = async (req, res) => {
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: "npr",
             product_data: {
               name: `Venue Booking: ${booking.venue.name}`,
               images: [venueImage],
@@ -172,7 +180,7 @@ const stripeWebHook = async (req, res) => {
   try {
     const sig = req.headers["stripe-signature"];
 
-    const rawBody = req.body; 
+    const rawBody = req.body;
 
     event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
 
@@ -213,39 +221,39 @@ const sendReceiptEmail = async (email, receipt) => {
       transactionId: receipt.transactionId,
       paymentDate: new Date(),
     });
-    
+
     // Create branded QR code with NepaEvents initials in black color
     const qrCodeOptions = {
       errorCorrectionLevel: 'H', // High error correction to allow for logo overlay
       margin: 1,
       color: {
-        dark: '#000000', 
-        light: '#FFFFFF' 
+        dark: '#000000',
+        light: '#FFFFFF'
       }
     };
-    
+
     // Generate the QR code as an image
     const qrCodeBuffer = await QRCode.toBuffer(qrData, qrCodeOptions);
-    
+
     // Create a canvas to overlay NepaEvents initials on the QR code
     const { createCanvas, loadImage } = require('canvas');
     const canvas = createCanvas(300, 300); // Size of the canvas
     const ctx = canvas.getContext('2d');
-    
+
     // Draw the QR code on the canvas
     const qrImage = await loadImage(qrCodeBuffer);
     ctx.drawImage(qrImage, 0, 0, 300, 300);
-    
+
     // Add NepaEvents initials in the center
-    ctx.fillStyle = '#FFFFFF'; 
-    ctx.fillRect(115, 130, 70, 40); 
-    
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(115, 130, 70, 40);
+
     ctx.font = 'bold 20px Arial';
     ctx.fillStyle = '#000000'; // Black color for the text as requested
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('NE', 150, 150); // NE for NepaEvents initials
-    
+
     // Convert canvas to buffer
     const brandedQRBuffer = canvas.toBuffer('image/png');
 
@@ -406,7 +414,7 @@ const verifyPayment = async (req, res) => {
 
       // First, check if payment has already been processed
       if (booking.paymentStatus === 'paid') {
-        const existingEvent = await Event.findOne({ 
+        const existingEvent = await Event.findOne({
           title: booking.eventDetails.title,
           date: booking.eventDetails.date,
           venue: booking.venue._id
@@ -493,27 +501,27 @@ const getUserReceipts = async (req, res) => {
         message: "Unauthorized: User not authenticated",
       });
     }
-    
+
     const userId = req.user.user._id;
     console.log(`Fetching receipts for user: ${userId}`);
-    
+
     // Find all receipts where the user is the organizer
     const receipts = await Receipt.find({ organizer: userId })
       .populate("venue")
       .sort({ paymentDate: -1 }); // Sort by payment date, newest first
-    
+
     console.log(`Found ${receipts.length} receipts`);
-    
-    res.status(200).json({ 
-      success: true, 
+
+    res.status(200).json({
+      success: true,
       receipts
     });
   } catch (error) {
     console.error("Error fetching user receipts:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to fetch payment history", 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch payment history",
+      error: error.message
     });
   }
 };
@@ -525,29 +533,29 @@ const downloadReceipt = async (req, res) => {
     const receipt = await Receipt.findById(receiptId)
       .populate("organizer")
       .populate("venue");
-    
+
     if (!receipt) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Receipt not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Receipt not found"
       });
     }
-    
+
     const receiptPath = path.join(__dirname, `../uploads/receipts/receipt_${receipt._id}.pdf`);
-    
+
     // Check if receipt file exists
     if (!fs.existsSync(receiptPath)) {
       // Generate receipt if it doesn't exist
       await sendReceiptEmail(receipt.organizer.email, receipt);
     }
-    
+
     res.download(receiptPath, `venue_receipt_${receipt._id}.pdf`);
   } catch (error) {
     console.error("Error downloading receipt:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to download receipt", 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: "Failed to download receipt",
+      error: error.message
     });
   }
 };

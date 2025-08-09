@@ -478,13 +478,6 @@ export const Login = () => {
                 >
                   Create New Account
                 </button>
-                <button
-                  type="button"
-                  className="w-full py-2.5 bg-[#FFF5F4] text-gray-700 font-medium rounded-full border border-[#ED4A43] hover:bg-white transition"
-                  onClick={handleGuestLogin}
-                >
-                  Continue as Guest
-                </button>
               </div>
             </>
           )}

@@ -15,7 +15,18 @@ const createEvent = async (req, res) => {
         const { title, description, date, venue, price, artist, category } = req.body;
         const image = req.file ? req.file.path : null;
         const organizer = req.user.user._id;
-        const event = await Event.create({ title, description, date, venue, price, image, artist, organizer, category, createdAt: new Date(), });
+        const event = await Event.create({
+            title,
+            description,
+            date,
+            venue,
+            price,
+            image,
+            artist,
+            organizer,
+            category,
+            createdAt: new Date(),
+        });
         res.status(201).json({
             success: true,
             message: 'Event created successfully',
@@ -29,88 +40,97 @@ const createEvent = async (req, res) => {
 
 const getAllEvents = async (req, res) => {
     try {
-        const events = await Event.find()
-            .populate("venue")
-            .populate("organizer");
-        res.status(200).json(events);
+        const events = await Event.find().populate("venue").populate("organizer");
+        if (!events.length) return res.status(200).json([]);
+
+        const eventIds = events.map(e => e._id);
+
+        // One aggregation: total tickets sold per event
+        const ticketStats = await Ticket.aggregate([
+            { $match: { event: { $in: eventIds } } },
+            { $group: { _id: "$event", totalSold: { $sum: "$quantity" } } }
+        ]);
+
+        const soldMap = new Map(ticketStats.map(s => [String(s._id), s.totalSold]));
+
+        const now = new Date();
+
+        const enriched = events.map(e => {
+            const ticketsSold = soldMap.get(String(e._id)) || 0;
+            const basePrice = e.price;
+            const totalTickets = e?.venue?.capacity || 1;
+            const percentSold = ticketsSold / totalTickets;
+
+            const eventDate = new Date(e.date);
+            const timeDiffInDays = Math.max((eventDate - now) / (1000 * 60 * 60 * 24), 0);
+
+            // === your exact dynamic price logic ===
+            let dynamicPrice = basePrice;
+            if (percentSold > 0.75) {
+                dynamicPrice *= 1.5; // 50% increase
+            } else if (percentSold > 0.5) {
+                dynamicPrice *= 1.3; // 30% increase
+            } else if (percentSold > 0.25) {
+                dynamicPrice *= 1.15; // 15% increase
+            }
+            if (Math.floor(timeDiffInDays) < 3) {
+                dynamicPrice *= 1.25; // last 3 days surge
+            } else if (Math.floor(timeDiffInDays) < 7) {
+                dynamicPrice *= 1.15;
+            }
+            dynamicPrice = Math.min(dynamicPrice, basePrice * 2);
+
+            return {
+                ...e.toObject(),
+                dynamicPrice: parseFloat(dynamicPrice.toFixed(2)),
+                ticketsSold,
+                percentSold: parseFloat((percentSold * 100).toFixed(2)),
+                daysUntilEvent: Math.floor(timeDiffInDays),
+            };
+        });
+
+        res.status(200).json(enriched);
     } catch (error) {
         console.error("Error getting events:", error);
         res.status(500).json({ message: "Error getting events", error: error.message });
     }
 };
 
+
 const updateEvent = async (req, res) => {
     try {
-        console.log("Update Event Request Body:", req.body);
+        const fields = ['title', 'description', 'date', 'venue', 'price', 'artist', 'category', 'promoCode'];
+        const updateData = Object.fromEntries(
+            fields
+                .filter(field => req.body[field] !== undefined)
+                .map(field => [field, req.body[field]])
+        );
 
-        // Extract fields from request body
-        const { title, description, date, venue, price, artist, category, promoCode, discountPercentage, usageLimit } = req.body;
+        if (req.body.discountPercentage !== undefined)
+            updateData.discountPercentage = req.body.discountPercentage === '' ? 0 : Number(req.body.discountPercentage);
 
-        // Create the update object with standard fields
-        const updateData = {};
+        if (req.body.usageLimit !== undefined)
+            updateData.usageLimit = req.body.usageLimit === '' ? 0 : Number(req.body.usageLimit);
 
-        // Add fields only if they're provided
-        if (title) updateData.title = title;
-        if (description) updateData.description = description;
-        if (date) updateData.date = date;
-        if (venue) updateData.venue = venue;
-        if (price) updateData.price = price;
-        if (artist) updateData.artist = artist;
-        if (category) updateData.category = category;
-
-        // Add promo code fields
-        // Use !== undefined to allow explicitly setting empty strings or zeros
-        if (promoCode !== undefined) updateData.promoCode = promoCode;
-        if (discountPercentage !== undefined) {
-            updateData.discountPercentage = discountPercentage === '' ? 0 : Number(discountPercentage);
-        }
-        if (usageLimit !== undefined) {
-            updateData.usageLimit = usageLimit === '' ? 0 : Number(usageLimit);
-        }
-
-        console.log("Update Data Object:", updateData);
-
-        // If a new image was uploaded, add it to the update data
         if (req.file) {
             updateData.image = req.file.path;
-
-            // Find the old event to get its image path
             const oldEvent = await Event.findById(req.params.eventId);
-
-            // Delete the old image if it exists
-            if (oldEvent && oldEvent.image) {
-                try {
-                    fs.unlinkSync(oldEvent.image);
-                } catch (err) {
-                    console.error("Could not delete old image file:", err);
-                }
+            if (oldEvent?.image) {
+                try { fs.unlinkSync(oldEvent.image); } catch (err) { console.error("Image delete error:", err); }
             }
         }
 
-        const updatedEvent = await Event.findByIdAndUpdate(
-            req.params.eventId,
-            updateData,
-            { new: true }
-        );
+        const updatedEvent = await Event.findByIdAndUpdate(req.params.eventId, updateData, { new: true });
 
-        if (!updatedEvent) {
-            return res.status(404).json({ message: "Event not found" });
-        }
+        if (!updatedEvent) return res.status(404).json({ message: "Event not found" });
 
-        res.status(200).json({
-            success: true,
-            message: "Event updated successfully",
-            event: updatedEvent
-        });
+        res.status(200).json({ success: true, message: "Event updated successfully", event: updatedEvent });
     } catch (error) {
         console.error("Error updating event:", error);
-        res.status(500).json({
-            success: false,
-            message: "Server error",
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: "Server error", error: error.message });
     }
-}
+};
+
 
 const deleteEvent = async (req, res) => {
     try {
@@ -123,36 +143,28 @@ const deleteEvent = async (req, res) => {
         res.status(500).json({ msg: "Server error" });
     }
 }
+
 const findEventById = async (req, res) => {
     try {
         const id = req.params.id;
-        const event = await Event.findById(id)
-            .populate("venue")
-            .populate("organizer");
+        const event = await Event.findById(id).populate("venue").populate("organizer");
 
-        if (!event) {
-            return res.status(404).json({ success: false, msg: "Event not found" });
-        }
+        if (!event) { return res.status(404).json({ success: false, msg: "Event not found" }); }
 
-        // Get tickets sold
         const tickets = await Ticket.aggregate([
             { $match: { event: event._id } },
             { $group: { _id: null, totalSold: { $sum: "$quantity" } } }
         ]);
         const ticketsSold = tickets.length > 0 ? tickets[0].totalSold : 0;
-
         const basePrice = event.price;
         const totalTickets = event?.venue?.capacity || 1;
         const percentSold = ticketsSold / totalTickets;
 
-        // Get event timing
         const now = new Date();
-        const eventDate = new Date(event.date); // assuming you have event.date
+        const eventDate = new Date(event.date);
         const timeDiffInDays = Math.max((eventDate - now) / (1000 * 60 * 60 * 24), 0);
 
-        // Pricing Strategy
         let dynamicPrice = basePrice;
-        // 1. Tiered price increase based on % of tickets sold
         if (percentSold > 0.75) {
             dynamicPrice *= 1.5; // 50% increase
         } else if (percentSold > 0.5) {
@@ -160,13 +172,11 @@ const findEventById = async (req, res) => {
         } else if (percentSold > 0.25) {
             dynamicPrice *= 1.15; // 15% increase
         }
-        // 2. Time-based surge: closer to event = higher price
         if (Math.floor(timeDiffInDays) < 3) {
             dynamicPrice *= 1.25; // 25% surge in last 3 days
         } else if (Math.floor(timeDiffInDays) < 7) {
             dynamicPrice *= 1.15;
         }
-        // 3. Cap max price to 2x base
         dynamicPrice = Math.min(dynamicPrice, basePrice * 2);
 
         res.status(200).json({
@@ -186,39 +196,75 @@ const findEventById = async (req, res) => {
     }
 };
 
+function getDynamicPrice(event, ticketsSold) {
+    const basePrice = Number(event.price) || 0;
+    const totalTickets = Number(event?.venue?.capacity) || 1;
+    const percentSold = totalTickets ? ticketsSold / totalTickets : 0;
+
+    const now = new Date();
+    const eventDate = new Date(event.date);
+    const timeDiffInDays = Math.max((eventDate - now) / (1000 * 60 * 60 * 24), 0);
+
+    let dynamicPrice = basePrice;
+    if (percentSold > 0.75) {
+        dynamicPrice *= 1.5; // 50% increase
+    } else if (percentSold > 0.5) {
+        dynamicPrice *= 1.3; // 30% increase
+    } else if (percentSold > 0.25) {
+        dynamicPrice *= 1.15; // 15% increase
+    }
+    if (Math.floor(timeDiffInDays) < 3) {
+        dynamicPrice *= 1.25; // last 3 days surge
+    } else if (Math.floor(timeDiffInDays) < 7) {
+        dynamicPrice *= 1.15;
+    }
+    dynamicPrice = Math.min(dynamicPrice, basePrice * 2);
+
+    return { dynamicPrice, timeDiffInDays, percentSold };
+}
 
 const buyEventTicket = async (req, res) => {
     try {
         const { eventId, promoCode, quantity } = req.body;
+
         const event = await Event.findById(eventId)
             .populate("venue")
             .populate("organizer");
 
         if (!event) {
-            return res.status(404).json({
-                success: false,
-                message: "Event not found!"
-            });
+            return res.status(404).json({ success: false, message: "Event not found!" });
         }
 
-        const tickets = await Ticket.aggregate([
+        // ticketsSold for this event
+        const agg = await Ticket.aggregate([
             { $match: { event: event._id } },
             { $group: { _id: null, totalSold: { $sum: "$quantity" } } }
         ]);
+        const ticketsSold = agg.length ? agg[0].totalSold : 0;
 
-        if (event.venue.capacity === tickets.totalSold) {
-            return res.status(500).json({
-                success: false,
-                message: "All tickets sold! Ticket out of stock"
-            });
+        // capacity / remaining checks
+        const capacity = Number(event?.venue?.capacity) || 0;
+        const remaining = Math.max(capacity - ticketsSold, 0);
+
+        if (capacity === 0) {
+            return res.status(400).json({ success: false, message: "Venue capacity not configured" });
+        }
+        if (remaining <= 0) {
+            return res.status(400).json({ success: false, message: "All tickets sold! Ticket out of stock" });
+        }
+        if (quantity > remaining) {
+            return res.status(400).json({ success: false, message: `Only ${remaining} ticket(s) left` });
         }
 
-        let priceAfterDiscount = event.price;
+        // === use dynamic price as the base ===
+        const { dynamicPrice } = getDynamicPrice(event, ticketsSold);
+
+        let priceAfterDiscount = dynamicPrice;
         let discountDescription = "";
         let groupDiscountApplied = false;
         let promoDiscountApplied = false;
 
-        // Apply group discount fi$t if applicable (20% for 5+ tickets)
+        // Group discount (20% for 5+ tickets)
         if (quantity >= 5) {
             const groupDiscount = 20;
             priceAfterDiscount *= (1 - groupDiscount / 100);
@@ -226,35 +272,36 @@ const buyEventTicket = async (req, res) => {
             discountDescription = `20% group discount applied`;
         }
 
-        // Then apply promo code discount if valid (10%)
+        // Promo code (10% default unless event has discountPercentage)
         if (promoCode) {
             if (event.promoCode && event.promoCode.toLowerCase() === promoCode.toLowerCase()) {
                 if (event.usageLimit === 0 || event.usageCount < event.usageLimit) {
                     const promoDiscount = event.discountPercentage || 10;
                     priceAfterDiscount *= (1 - promoDiscount / 100);
                     promoDiscountApplied = true;
-                    await Event.findByIdAndUpdate(eventId, {
-                        $inc: { usageCount: 1 }
-                    });
 
-                    if (groupDiscountApplied) {
-                        discountDescription = `20% group + 10% promo discounts applied`;
-                    } else {
-                        discountDescription = `10% promo discount applied`;
-                    }
+                    await Event.findByIdAndUpdate(eventId, { $inc: { usageCount: 1 } });
+
+                    discountDescription = groupDiscountApplied
+                        ? `20% group + ${promoDiscount}% promo discounts applied`
+                        : `${promoDiscount}% promo discount applied`;
                 }
             }
         }
 
-        const totalAmount = priceAfterDiscount * quantity;
-        const originalTotal = event.price * quantity;
-        const savings = originalTotal - totalAmount;
+        // Totals (NPR uses paisa; stripe amount is in smallest unit)
+        const unitAmount = Math.max(0, Math.round(priceAfterDiscount * 100)); // per ticket in paisa
+        const totalAmount = unitAmount * quantity; // for your own calc / logs if needed
+        const originalTotal = Math.round(dynamicPrice * 100) * quantity;
+        const savings = (originalTotal - totalAmount) / 100;
 
         if (discountDescription) {
-            discountDescription += ` (You save: $${savings.toFixed(2)})`;
+            discountDescription += ` (You save: NPR ${savings.toFixed(2)})`;
         }
 
-        const eventImage = event.image ? `http://localhost:3000/${event.image.replace(/\\/g, "/")}` : null;
+        const eventImage = event.image
+            ? `http://localhost:3000/${event.image.replace(/\\/g, "/")}`
+            : null;
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card"],
@@ -267,32 +314,42 @@ const buyEventTicket = async (req, res) => {
                     currency: "npr",
                     product_data: {
                         name: `Event Ticket: ${event.title}`,
-                        description: `${quantity} ticket${quantity > 1 ? 's' : ''} for ${event.title}\n${discountDescription}`,
+                        description:
+                            `${quantity} ticket${quantity > 1 ? 's' : ''} for ${event.title}\n` +
+                            `Dynamic price: NPR ${dynamicPrice.toFixed(2)} per ticket\n` +
+                            (discountDescription || "No discounts applied"),
                         images: eventImage ? [eventImage] : [],
                     },
-                    unit_amount: Math.round(priceAfterDiscount * 100), // Price per ticket in cents
+                    unit_amount: unitAmount, // dynamic price after discounts, in paisa
                 },
-                quantity: quantity,
+                quantity,
             }],
             metadata: {
                 eventId: event._id.toString(),
                 userId: req.user.user._id.toString(),
+                basePrice: String(event.price),
+                dynamicPrice: dynamicPrice.toFixed(2),
                 discountApplied: (groupDiscountApplied || promoDiscountApplied) ? "true" : "false",
-                discountPercentage: groupDiscountApplied && promoDiscountApplied ? "30" :
-                    groupDiscountApplied ? "20" :
-                        promoDiscountApplied ? "10" : "0",
+                discountPercentage: groupDiscountApplied && promoDiscountApplied
+                    ? "30"
+                    : groupDiscountApplied
+                        ? "20"
+                        : promoDiscountApplied
+                            ? String(event.discountPercentage || 10)
+                            : "0",
                 promoCode: promoCode || "",
-                quantity: quantity.toString(),
-                discountType: groupDiscountApplied && promoDiscountApplied ? "group+promo" :
-                    groupDiscountApplied ? "group" :
-                        promoDiscountApplied ? "promo" : "none"
+                quantity: String(quantity),
+                discountType: groupDiscountApplied && promoDiscountApplied
+                    ? "group+promo"
+                    : groupDiscountApplied
+                        ? "group"
+                        : promoDiscountApplied
+                            ? "promo"
+                            : "none"
             },
         });
 
-        res.status(200).json({
-            success: true,
-            url: session.url
-        });
+        res.status(200).json({ success: true, url: session.url });
     } catch (error) {
         console.error("Error creating payment session:", error);
         res.status(500).json({
@@ -302,6 +359,7 @@ const buyEventTicket = async (req, res) => {
         });
     }
 };
+
 // Send receipt email for event payment
 const sendEventTicketEmail = async (email, ticket) => {
     try {
@@ -455,7 +513,7 @@ const sendEventTicketEmail = async (email, ticket) => {
         // Add price - directly above the QR code
         doc.fontSize(12)
             .font('Helvetica-Bold')
-            .text(`Total Price: $${parseFloat(ticket.event.price * ticket.quantity).toFixed(2)}`,
+            .text(`Total Price: Rs ${parseFloat(ticket.price * ticket.quantity).toFixed(2)}`,
                 qrCodeX - 40, qrCodeY - 25,
                 { align: 'right' });
 
@@ -547,6 +605,14 @@ const verifyEventPayment = async (req, res) => {
 
         if (!event) return res.status(404).json({ message: "Event not found!" });
 
+        const agg = await Ticket.aggregate([
+            { $match: { event: event._id } },
+            { $group: { _id: null, totalSold: { $sum: "$quantity" } } }
+        ]);
+        const ticketsSold = agg.length ? agg[0].totalSold : 0;
+
+        const { dynamicPrice } = getDynamicPrice(event, ticketsSold);
+
         const quantity = parseInt(session.metadata.quantity || 1);
 
         // Generate multiple ticket codes but store in one document
@@ -561,7 +627,7 @@ const verifyEventPayment = async (req, res) => {
             user: req.user.user._id,
             event: event._id,
             quantity: quantity,
-            price: event.price,
+            price: dynamicPrice,
             ticketCodes: ticketCodes,
             purchaseDate: new Date(),
         });
